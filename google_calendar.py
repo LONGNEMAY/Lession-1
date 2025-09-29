@@ -18,7 +18,7 @@ def dang_nhap_google():
     Đăng nhập Google bằng OAuth2, trả về đối tượng service để thao tác Calendar.
     Yêu cầu có file credentials.json trong cùng thư mục.
     """
-    creds = None
+    creds = flow.run_console()
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     if not creds or not creds.valid:
@@ -97,4 +97,5 @@ def xoa_su_kien_tkb(service, prefix="[TKB]"):
             service.events().delete(calendarId='primary', eventId=event['id']).execute()
             count += 1
     print(f"🗑️ Đã xóa {count} sự kiện có prefix '{prefix}'.")
+
     return count
