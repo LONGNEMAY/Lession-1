@@ -14,22 +14,23 @@ SCOPES = ['https://www.googleapis.com/auth/calendar']
 # Đăng nhập Google và tạo service
 # ----------------------------------------
 def dang_nhap_google():
-    """
-    Đăng nhập Google bằng OAuth2, trả về đối tượng service để thao tác Calendar.
-    Yêu cầu có file credentials.json trong cùng thư mục.
-    """
+    SCOPES = ["https://www.googleapis.com/auth/calendar"]
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            creds = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES).run_local_server(port=0)
-        with open('token.json', 'w') as token:
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            creds = flow.run_console()  # ⚠️ bắt buộc đổi run_local_server → run_console
+
+        with open("token.json", "w") as token:
             token.write(creds.to_json())
-    print("✅ Đăng nhập Google thành công!")
-    return build('calendar', 'v3', credentials=creds)
+
+    return build("calendar", "v3", credentials=creds)
 
 # ----------------------------------------
 # Tìm ngày đầu tiên khớp với thứ học
@@ -97,4 +98,5 @@ def xoa_su_kien_tkb(service, prefix="[TKB]"):
             service.events().delete(calendarId='primary', eventId=event['id']).execute()
             count += 1
     print(f"🗑️ Đã xóa {count} sự kiện có prefix '{prefix}'.")
+
     return count
