@@ -1,101 +1,84 @@
+# google_calendar.py
+from __future__ import print_function
+import datetime
 import os
-import datetime as dt
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 
-# ----------------------------------------
-# Phạm vi quyền (Google Calendar)
-# ----------------------------------------
-SCOPES = ['https://www.googleapis.com/auth/calendar']
+# Quyền truy cập Calendar
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-# ----------------------------------------
-# Đăng nhập Google và tạo service
-# ----------------------------------------
 def dang_nhap_google():
-    """
-    Đăng nhập Google bằng OAuth2, trả về đối tượng service để thao tác Calendar.
-    Yêu cầu có file credentials.json trong cùng thư mục.
-    """
-    creds = flow.run_console()
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    """Đăng nhập Google Calendar, tạo service"""
+    creds = None
+    # Nếu đã có token.json thì load
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    # Nếu chưa có hoặc token hết hạn
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            creds = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES).run_local_server(port=0)
-        with open('token.json', 'w') as token:
+            # Yêu cầu đăng nhập lại bằng credentials.json
+            flow = InstalledAppFlow.from_client_secrets_file(
+                "credentials.json", SCOPES
+            )
+            # Nếu chạy local không mở được browser thì dùng run_console()
+            creds = flow.run_console()
+
+        # Lưu token mới
+        with open("token.json", "w") as token:
             token.write(creds.to_json())
-    print("✅ Đăng nhập Google thành công!")
-    return build('calendar', 'v3', credentials=creds)
 
-# ----------------------------------------
-# Tìm ngày đầu tiên khớp với thứ học
-# ----------------------------------------
-def tim_ngay_bat_dau(start_date, google_weekday):
-    current = start_date
-    while current.weekday() != google_weekday:
-        current += dt.timedelta(days=1)
-    return current
+    service = build("calendar", "v3", credentials=creds)
+    return service
 
-# ----------------------------------------
-# Hàm tạo sự kiện lặp hàng tuần
-# ----------------------------------------
 def tao_su_kien(service, mon, phong, giang_vien,
-                start_date, end_date, weekday, start_time, end_time,
-                reminders=None, prefix="[TKB]"):
-    """
-    Tạo sự kiện lặp hàng tuần trên Google Calendar.
-    """
-    start_date = dt.datetime.strptime(start_date.strip(), "%d/%m/%Y").date()
-    end_date = dt.datetime.strptime(end_date.strip(), "%d/%m/%Y").date()
+                 start_date, end_date, weekday,
+                 start_time, end_time, reminders, prefix="[TKB]"):
+    """Tạo sự kiện lịch học trên Google Calendar"""
 
-    # Google Calendar: 0=Thứ 2 ... 6=Chủ Nhật
-    google_weekday = (weekday - 2) % 7
-    current = tim_ngay_bat_dau(start_date, google_weekday)
-
-    start_dt = dt.datetime.combine(current, dt.datetime.strptime(start_time, "%H:%M").time())
-    end_dt = dt.datetime.combine(current, dt.datetime.strptime(end_time, "%H:%M").time())
+    # Mapping thứ (Mon, Tue, ...) sang số
+    weekday_map = {
+        "2": "MO", "3": "TU", "4": "WE", "5": "TH", "6": "FR", "7": "SA", "CN": "SU"
+    }
+    byday = weekday_map.get(str(weekday), "MO")
 
     event = {
-        'summary': f"{prefix} {mon}",
-        'location': phong,
-        'description': f"Giảng viên: {giang_vien}",
-        'start': {'dateTime': start_dt.isoformat(), 'timeZone': 'Asia/Ho_Chi_Minh'},
-        'end': {'dateTime': end_dt.isoformat(), 'timeZone': 'Asia/Ho_Chi_Minh'},
-        'recurrence': [f"RRULE:FREQ=WEEKLY;UNTIL={end_date.strftime('%Y%m%d')}T235959Z"],
-        'reminders': {'useDefault': False, 'overrides': reminders or []}
+        "summary": f"{prefix} {mon}",
+        "location": phong if phong else "",
+        "description": giang_vien if giang_vien else "",
+        "start": {
+            "dateTime": f"{start_date}T{start_time}:00",
+            "timeZone": "Asia/Ho_Chi_Minh",
+        },
+        "end": {
+            "dateTime": f"{start_date}T{end_time}:00",
+            "timeZone": "Asia/Ho_Chi_Minh",
+        },
+        "recurrence": [
+            f"RRULE:FREQ=WEEKLY;BYDAY={byday};UNTIL={end_date.replace('-', '')}T235900Z"
+        ],
+        "reminders": {
+            "useDefault": False,
+            "overrides": reminders,
+        },
     }
 
-    event = service.events().insert(calendarId='primary', body=event).execute()
-    print(f"📅 Đã tạo sự kiện: {event['summary']} ({event.get('id')})")
-    return event.get('id')
+    service.events().insert(calendarId="primary", body=event).execute()
 
-# ----------------------------------------
-# Hàm xóa toàn bộ sự kiện TKB (theo prefix)
-# ----------------------------------------
 def xoa_su_kien_tkb(service, prefix="[TKB]"):
-    """
-    Xóa toàn bộ sự kiện có prefix trong Google Calendar.
-    """
+    """Xóa toàn bộ sự kiện có prefix nhất định"""
     events_result = service.events().list(
-        calendarId='primary',
-        q=prefix,  # Lọc theo từ khóa ngay tại đây
-        singleEvents=True,
-        orderBy='startTime',
-        maxResults=2500
+        calendarId="primary", maxResults=2500, singleEvents=True
     ).execute()
-    events = events_result.get('items', [])
-    count = 0
-    if not events:
-        print(f"ℹ️ Không tìm thấy sự kiện nào có prefix '{prefix}' để xóa.")
-        return 0
-    for event in events:
-        if event.get('summary', '').startswith(prefix):
-            service.events().delete(calendarId='primary', eventId=event['id']).execute()
-            count += 1
-    print(f"🗑️ Đã xóa {count} sự kiện có prefix '{prefix}'.")
+    events = events_result.get("items", [])
 
-    return count
+    for event in events:
+        if event.get("summary", "").startswith(prefix):
+            service.events().delete(calendarId="primary", eventId=event["id"]).execute()
+
+
