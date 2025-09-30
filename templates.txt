@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Lên lịch thời khóa biểu tự động</title>
+</head>
+<body>
+  <h2>Lên lịch thời khóa biểu tự động</h2>
+
+  {% if "credentials" not in session %}
+    <a href="/authorize">🔑 Đăng nhập Google</a>
+  {% else %}
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <label>File Excel TKB:</label>
+      <input type="file" name="file" required><br><br>
+
+      <label>Tiền tố sự kiện:</label>
+      <input type="text" name="prefix" value="[TKB]"><br><br>
+
+      <button type="submit">📌 Lên sự kiện</button>
+    </form>
+  {% endif %}
+</body>
+</html>
