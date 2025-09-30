@@ -25,7 +25,7 @@ GOOGLE_CLIENT_SECRETS_FILE = "credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 # URL callback sau khi login thành công
-REDIRECT_URI = "https://lession-1-3-m7zy.onrender.com/oauth2callback"
+REDIRECT_URI = "https://lession-1-4-riiv.onrender.com/oauth2callback"
 # Khi deploy Render thì đổi thành:
 # REDIRECT_URI = "https://ten-app.onrender.com/oauth2callback"
 
@@ -107,5 +107,6 @@ def create_event():
 
 if __name__ == "__main__":
     app.run("0.0.0.0", 5000, debug=True)
+
 
 
