@@ -70,25 +70,27 @@ def upload():
     creds = Credentials.from_authorized_user_info(flask.session["credentials"], SCOPES)
     service = build("calendar", "v3", credentials=creds)
 
-    for _, row in df.iterrows():
-        try:
-            # Giả sử THỜI GIAN HỌC dạng: "2025-10-01 08:00-10:00"
-            time_range = str(row["THỜI GIAN HỌC"]).split("-")
-            start = pd.to_datetime(time_range[0].strip())
-            end = pd.to_datetime(time_range[1].strip())
+   for _, row in df.iterrows():
+    try:
+        # Lấy cột THỜI GIAN HỌC
+        time_range = str(row["THỜI GIAN HỌC"]).split("-")
+        start = pd.to_datetime(time_range[0].strip())
+        end = pd.to_datetime(time_range[1].strip())
 
-            event = {
-                "summary": f"{prefix} {row['TÊN HỌC PHẦN']}",
-                "start": {"dateTime": start.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
-                "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
-            }
-            service.events().insert(calendarId="primary", body=event).execute()
+        event = {
+            "summary": f"{prefix} {row['TÊN HỌC PHẦN']}",  # dùng đúng cột
+            "start": {"dateTime": start.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
+            "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Ho_Chi_Minh"},
+        }
+        service.events().insert(calendarId="primary", body=event).execute()
 
-        except Exception as e:
-            print("❌ Lỗi khi xử lý:", row["THỜI GIAN HỌC"], e)
-            continue
+    except Exception as e:
+        print("❌ Lỗi khi xử lý:", row.to_dict(), e)
+        continue
+
 
     return "✅ Đã tạo sự kiện từ file Excel! <a href='/'>Quay lại</a>"
+
 
 
 
