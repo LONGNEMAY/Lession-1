@@ -1,7 +1,7 @@
-streamlit
-pandas
-openpyxl
-xlrd
-google-api-python-client
-google-auth-httplib2
+flask
+google-auth
 google-auth-oauthlib
+google-api-python-client
+requests
+
+
